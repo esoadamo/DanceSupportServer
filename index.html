@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Battleships</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    function join(){
+      let name = document.querySelector('#name').value;
+      let nationality = document.querySelector('#nationality').value;
+      socket.emit('setProfile', {'name': name, 'nationality': nationality});
+    }
+    socket.on('profileSet', function(data) {
+      document.body.innerHTML = 'Joined!';
+    })
+    socket.on('profileError', function(data) {
+      alert('Cannot join because of:\n' + data);
+    });
+  </script>
+</head>
+
+<body>
+  Name: <input type='text' id='name'><br>
+  Nationality: <input type='text' id ='nationality'><br>
+  <button onclick="join();">Join</button>
+</body>
+
+</html>

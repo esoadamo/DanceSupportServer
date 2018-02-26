@@ -1,0 +1,27 @@
+{
+  "name": "dancesupport-server",
+  "version": "0.0.1",
+  "description": "DanceSupport - a JS server",
+  "main": "app.js",
+  "scripts": {
+    "start": "nodemon app.js"
+  },
+  "keywords": [
+    "music",
+    "dancing",
+    "social",
+    "javascript"
+  ],
+  "author": "Adam Hlaváček",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.16.2",
+    "moment": "^2.20.1",
+    "socket.io": "^2.0.4",
+    "sqlite3": "^3.1.13",
+    "uuid": "^3.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^1.14.12"
+  }
+}
