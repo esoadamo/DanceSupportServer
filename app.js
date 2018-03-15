@@ -5,10 +5,13 @@ const moment = require('moment');
 const uuid = require('uuid/v4');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 const PORT = 3000; // server port
 const db = new sqlite3.Database('datab.db');
 const SESSION_TIMEOUT = 1; // minutes
+const folderSongs = 'songs'; // folder where the songs will be saved
 
 let timerRemoveOldSessions;
 let onlineUsers = {};  // key is uid, value is list with Client objects
@@ -19,27 +22,6 @@ const User = function(rowid, username, uid) {
   this.uid = uid;
   this.friends = {}; // key is uid, value is {"username": value, "online": bool}
 }
-
-const FileRecivier = function(socket, allowUploads=true) {
-  let socketListeners = [];
-  let newUploadsAllowed = allowUploads;
-
-  socket.on('newUpload', (data) => {
-    if (!newUploadsAllowed){
-      socket.emit('uploadFailed', {file: 'file' in data ? data.file : '', reason: 'File uploads are disabled'});
-      return;
-    }
-
-  });
-
-  this.setAllow = (bool) => {
-    this.newUploadsAllowed = bool;
-  };
-  this.close = () => {
-    for (let listenerName of socketListeners)
-      socket.removeAllListeners(listenerName);
-  };
-};
 
 const Client = function(socket) {
   this.socket = socket;
@@ -110,17 +92,32 @@ const Client = function(socket) {
                     });
           });
         });
-        this.socket.on('challenge', (uid) => {
-            if (!(uid in this.user.friends)){
+        this.socket.on('challenge', (data) => {
+            if (!('seconds' in data) || !('videoId' in data) || !('uid' in data)){
+              this.socket.emit('challengeDeclined', 'Incomplete request');
+              return;
+            }
+            if (!(data.uid in this.user.friends)){
                 this.socket.emit('challengeDeclined', 'This user is not your friend.');
                 return;
             }
-            if (!(uid in onlineUsers)){
+            if (!(data.uid in onlineUsers)){
                 this.socket.emit('challengeDeclined', 'User is offline');
                 return;
             }
-            console.log('challenging');
-            io.to(uid).emit('challenge', thisClient.user.uid);
+            io.to(data.uid).emit('challenge', {uid: thisClient.user.uid, videoId: data.videoId, seconds: data.seconds});
+        });
+
+        this.socket.on('upload', (data) => {
+          if (!('hash' in data) || !('urldata' in data)) {
+            // TODO Upload failed
+            return;
+          }
+          fs.writeFile(path.join(folderSongs, path.basename(data.hash)), data.urldata, function(err) {
+              if(err) {
+                  return console.log('Error during saving a song: ' + err);
+              }
+          });
         });
     };
 
