@@ -93,7 +93,7 @@ const Client = function(socket) {
           });
         });
         this.socket.on('challenge', (data) => {
-            if (!('seconds' in data) || !('videoId' in data) || !('uid' in data)){
+            if (!('seconds' in data) || !('songId' in data) || !('uid' in data)){
               this.socket.emit('challengeDeclined', 'Incomplete request');
               return;
             }
@@ -105,18 +105,21 @@ const Client = function(socket) {
                 this.socket.emit('challengeDeclined', 'User is offline');
                 return;
             }
-            io.to(data.uid).emit('challenge', {uid: thisClient.user.uid, videoId: data.videoId, seconds: data.seconds});
+            io.to(data.uid).emit('challenge', {uid: thisClient.user.uid, songId: data.songId, seconds: data.seconds});
+        });
+
+        this.socket.on('isUploaded', (songId) => {
+          thisClient.socket.emit('uploadStatus', fs.existsSync(path.join(folderSongs, path.basename(songId))));
         });
 
         this.socket.on('upload', (data) => {
           if (!('hash' in data) || !('urldata' in data)) {
-            // TODO Upload failed
             return;
           }
           fs.writeFile(path.join(folderSongs, path.basename(data.hash)), data.urldata, function(err) {
-              if(err) {
+              if(err)
                   return console.log('Error during saving a song: ' + err);
-              }
+              thisClient.socket.emit('uploadStatus', !err);
           });
         });
     };
@@ -135,6 +138,14 @@ const ClientStatus = {
   unknown: 0,
   loggedIn: 1
 }
+
+if (!fs.existsSync(folderSongs))
+    fs.mkdirSync(folderSongs);
+
+app.get('/song/:hash', function(req, res) {
+  res.set('Access-Control-Allow-Origin','*');
+  res.sendFile(path.resolve(path.join(folderSongs, path.basename(req.params.hash))));
+});
 
 app.get('*', function(req, res) {
   res.sendFile(__dirname + '/index.html');
