@@ -7,6 +7,9 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const ffmpeg = require('./ffmpeg.js');
+
+// eval(fs.readFileSync('ffmpeg.js')+'');
 
 const PORT = 3000; // server port
 const db = new sqlite3.Database('datab.db');
@@ -158,6 +161,27 @@ io.on('connection', function(socket) {
 
 http.listen(PORT, function() {
   console.log(`Live on http://localhost:${PORT}`);
+});
+
+const baseData = fs.readFileSync('songs/testSong').toString();
+
+console.log('Running');
+console.log(fs.readFileSync('c:\\Users\\Adam\\Music\\Urban Cone - Old School.ogg'));
+var results = ffmpeg.run({
+  type: "command",
+  arguments: ['-i Zeus.ogg out.mp4'],
+  files: [
+    {
+      //data: Buffer.from(baseData, 'base64'),
+      data: new Uint8Array(fs.readFileSync('c:\\Users\\Adam\\Music\\Urban Cone - Old School.ogg')),
+      name: 'Zeus.ogg'
+    }
+  ]
+});
+
+// results is an Array of { data: UInt8Array, name: string }
+results.forEach(function(file) {
+  console.log("File recieved", file.name, file.data);
 });
 
 /**
