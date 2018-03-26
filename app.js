@@ -113,10 +113,10 @@ const Client = function(socket) {
         });
 
         this.socket.on('upload', (data) => {
-          if (!('hash' in data) || !('urldata' in data)) {
+          if (!('hash' in data) || !('data' in data)) {
             return;
           }
-          fs.writeFile(path.join(folderSongs, path.basename(data.hash)), data.urldata, function(err) {
+          fs.writeFile(path.join(folderSongs, path.basename(data.hash)), data.data, function(err) {
               if(err)
                   return console.log('Error during saving a song: ' + err);
               thisClient.socket.emit('uploadStatus', !err);
