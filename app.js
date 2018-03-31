@@ -1,6 +1,8 @@
 const app = require('express')();
 const http = require('http').Server(app);
-const io = require('socket.io')(http, {origins: '*:*'});
+const io = require('socket.io')(http, {
+  origins: '*:*'
+});
 const moment = require('moment');
 const uuid = require('uuid/v4');
 const sqlite3 = require('sqlite3').verbose();
@@ -14,7 +16,7 @@ const SESSION_TIMEOUT = 1; // minutes
 const folderSongs = 'songs'; // folder where the songs will be saved
 
 let timerRemoveOldSessions;
-let onlineUsers = {};  // key is uid, value is list with Client objects
+let onlineUsers = {}; // key is uid, value is list with Client objects
 
 const User = function(rowid, username, uid) {
   this.username = username;
@@ -85,27 +87,34 @@ const Client = function(socket) {
             db.all(`SELECT username, uid FROM users INNER JOIN friendships ON
                     (users.rowid == friendships.urow1 AND friendships.urow2 == ?)
                     OR (users.rowid == friendships.urow2 AND friendships.urow1 == ?)`, [thisClient.user.rowid, thisClient.user.rowid], (err, rows) => {
-                        thisClient.user.friends = {};
-                        for (let row of rows)
-                            thisClient.user.friends[row.uid] = {username: row.username, online: row.uid in onlineUsers};
-                        thisClient.socket.emit('friendsList', thisClient.user.friends);
-                    });
+              thisClient.user.friends = {};
+              for (let row of rows)
+                thisClient.user.friends[row.uid] = {
+                  username: row.username,
+                  online: row.uid in onlineUsers
+                };
+              thisClient.socket.emit('friendsList', thisClient.user.friends);
+            });
           });
         });
         this.socket.on('challenge', (data) => {
-            if (!('seconds' in data) || !('songId' in data) || !('uid' in data)){
-              this.socket.emit('challengeDeclined', 'Incomplete request');
-              return;
-            }
-            if (!(data.uid in this.user.friends)){
-                this.socket.emit('challengeDeclined', 'This user is not your friend.');
-                return;
-            }
-            if (!(data.uid in onlineUsers)){
-                this.socket.emit('challengeDeclined', 'User is offline');
-                return;
-            }
-            io.to(data.uid).emit('challenge', {uid: thisClient.user.uid, songId: data.songId, seconds: data.seconds});
+          if (!('seconds' in data) || !('songId' in data) || !('uid' in data)) {
+            this.socket.emit('challengeDeclined', 'Incomplete request');
+            return;
+          }
+          if (!(data.uid in this.user.friends)) {
+            this.socket.emit('challengeDeclined', 'This user is not your friend.');
+            return;
+          }
+          if (!(data.uid in onlineUsers)) {
+            this.socket.emit('challengeDeclined', 'User is offline');
+            return;
+          }
+          io.to(data.uid).emit('challenge', {
+            uid: thisClient.user.uid,
+            songId: data.songId,
+            seconds: data.seconds
+          });
         });
 
         this.socket.on('isUploaded', (songId) => {
@@ -117,16 +126,44 @@ const Client = function(socket) {
             return;
           }
           fs.writeFile(path.join(folderSongs, path.basename(data.hash)), data.data, function(err) {
-              if(err)
-                  return console.log('Error during saving a song: ' + err);
-              thisClient.socket.emit('uploadStatus', !err);
+            if (err)
+              return console.log('Error during saving a song: ' + err);
+            thisClient.socket.emit('uploadStatus', !err);
           });
+        });
+
+        this.socket.on('startPlaying', (data) => {
+          if (!('yourId' in data) || !('seconds' in data)) {
+            return;
+          }
+          io.to(data.yourId).emit('startPlaying', {
+            seconds: data.seconds,
+            uid: thisClient.user.uid
+          });
+        });
+
+        this.socket.on('challengeUpdate', (data) => {
+          if (!('yourId' in data) || !('message' in data)) {
+            return;
+          }
+          io.to(data.yourId).emit('challengeUpdate', {
+            message: data.message,
+            uid: thisClient.user.uid
+          });
+        });
+
+        this.socket.on('challengeDeclined', (declinedUid) => {
+          io.to(declinedUid).emit('challengeDeclined', 'I am busy right now');
         });
     };
 
     this.disconnect = () => {
-      if ((this.user !== null) && (this.user.uid !== null) && (this.user.uid in onlineUsers))
-        delete onlineUsers[this.user.uid]
+      // remove this client from online users instance
+      if ((this.user !== null) && (this.user.uid !== null) && (this.user.uid in onlineUsers)) {
+        let currentClientIndex = onlineUsers[this.user.uid].indexOf(thisClient);
+        if (currentClientIndex !== -1)
+          onlineUsers[this.user.uid].slice(currentClientIndex, 1);
+      }
     };
   }
 
@@ -140,10 +177,10 @@ const ClientStatus = {
 }
 
 if (!fs.existsSync(folderSongs))
-    fs.mkdirSync(folderSongs);
+  fs.mkdirSync(folderSongs);
 
 app.get('/song/:hash', function(req, res) {
-  res.set('Access-Control-Allow-Origin','*');
+  res.set('Access-Control-Allow-Origin', '*');
   res.sendFile(path.resolve(path.join(folderSongs, path.basename(req.params.hash))));
 });
 
@@ -163,7 +200,8 @@ http.listen(PORT, function() {
 /**
  * Removes login sesstion that had timed out
  * @type {Timer}
- *//* TODO Not Implemented yet
+ */
+/* TODO Not Implemented yet
 timerRemoveOldSessions = setInterval(()=>{
     db.serialize(() => { db.run("DELETE FROM login_sessions WHERE timeout < ?", (new Date()).getTime() / 1000);} );
 }, SESSION_TIMEOUT * 60 * 1000);*/
