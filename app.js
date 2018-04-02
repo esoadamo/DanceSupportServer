@@ -10,7 +10,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 3000; // server port
+const PORT = 8476; // server port
 const db = new sqlite3.Database('datab.db');
 const SESSION_TIMEOUT = 1; // minutes
 const folderSongs = 'songs'; // folder where the songs will be saved
